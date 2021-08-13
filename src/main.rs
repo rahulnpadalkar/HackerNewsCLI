@@ -5,6 +5,7 @@ use std::{env, time::Duration, time::UNIX_EPOCH};
 use std::{io, vec};
 use chrono::DateTime;
 use chrono::Utc;
+use tui::text::Text;
 use tui::{
     Terminal, 
     backend::TermionBackend, 
@@ -14,9 +15,16 @@ use tui::{
     style::{Color, Modifier, Style}
 };
 
+use sanitize_html::{
+    sanitize_str,
+    rules::predefined::DEFAULT
+};
+
 use crate::hacker_news::{
     HNPost,
-    get_data
+    HNComment,
+    get_data,
+    get_comments
 };
 
 use crate::utils::{
@@ -28,7 +36,7 @@ use termion::{raw::IntoRawMode, event::Key};
 
 struct HNPostsList {
     items: StatefulList<HNPost>,
-    //selected_post_comments: Vec<HNComment>
+    selected_post_comments: Vec<HNComment>
 }
 
 fn main() ->  Result<(), Box<dyn Error>>{
@@ -41,7 +49,8 @@ fn main() ->  Result<(), Box<dyn Error>>{
     let hn_posts: Vec<HNPost> = get_data(category).unwrap();
     let events = Events::new();
     let mut hn_posts_list = HNPostsList{
-        items: StatefulList::with_items(hn_posts)
+        items: StatefulList::with_items(hn_posts),
+        selected_post_comments: vec![]
     };
     terminal.clear()?;
     loop {
@@ -134,7 +143,7 @@ fn main() ->  Result<(), Box<dyn Error>>{
             let footer_items: Vec<ListItem> = vec![ListItem::new(vec![
                     Spans::from(
                         vec![
-                            Span::raw("(q) to quit\t (->) to open webpage\t (<-) to open hacker news post")
+                            Span::raw("(q) to quit\t (->) to open webpage\t (<-) to open hacker news post (c) to load post comments")
                         ]
                     )
             ])];
@@ -142,17 +151,27 @@ fn main() ->  Result<(), Box<dyn Error>>{
             let footer = List::new(footer_items).block(Block::default());
                 
             f.render_widget(footer, chunks[2]);
-            /*let all_comments: Vec<ListItem> = hn_posts_list.selected_post_comments.clone().into_iter().map(|comment| {
-                let spans: Vec<Spans> = vec![Spans::from (
-                    vec![
-                        Span::raw(format!("{}", comment.text))
-                    ])];
-                ListItem::new(spans)
-            }).collect();*/
+            let all_comments: Vec<ListItem> = hn_posts_list.selected_post_comments.clone().into_iter().map(|comment| {
+                let unsanitized_comment_value:String;
+                let sanitized_comment_value:String;
+                let comment_value:String;
+                let mut lines: Vec<&str> = vec![];
+                if comment.text.is_none() {
+                    comment_value = "Dead Commnet".to_string();
+                } else {
+                    //comment_value = comment.text.unwrap().replace("<p>","/\r/\n").replace("&gt;", ">").replace("&lt;", "<");
+                    unsanitized_comment_value = comment.text.unwrap();
+                    lines = unsanitized_comment_value.split("<p>").collect();
+                    sanitized_comment_value = sanitize_str(&DEFAULT, &lines.join("@@NL@@")).unwrap();
+                    lines = sanitized_comment_value.split("@@NL@@").collect();
+                    comment_value = lines.join("\n").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                }
+                ListItem::new(Text::from(comment_value + "\n----------------------------------------------------------------------------------------------------------------------"))
+            }).collect();
 
-            let saved_posts_block = Block::default().borders(Borders::ALL).title("Saved Posts");
+            let post_comment_block = List::new(all_comments).block(Block::default().borders(Borders::ALL).title("Post Comments"));
 
-            f.render_widget(saved_posts_block, chunks[1]);
+            f.render_widget(post_comment_block, chunks[1]);
         })?;
 
         match events.next()? {
@@ -184,11 +203,11 @@ fn main() ->  Result<(), Box<dyn Error>>{
                     }
                 },
                 Key::Char('c') => {
-                    /*let selected_index = hn_posts_list.items.state.selected();
+                    let selected_index = hn_posts_list.items.state.selected();
                     let selected_post = hn_posts_list.items.items.get(selected_index.unwrap()).unwrap();
                     if selected_post.kids.is_some() {
                         hn_posts_list.selected_post_comments =  get_comments(selected_post.kids.clone().unwrap()).unwrap();
-                    }*/
+                    }
                 },
                 _ => {}
             },

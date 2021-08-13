@@ -16,8 +16,7 @@ pub struct HNPost {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HNComment {
     pub id: u64,
-    pub text: String,
-    pub by: String
+    pub text: Option<String>,
 }
 
 
