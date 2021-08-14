@@ -2,6 +2,8 @@
 
 A TUI application to browse top posts from HackerNews.
 
+[![HackerNewsCLI](http://img.youtube.com/vi/nDaY-8qA5Xg/0.jpg)](https://youtu.be/nDaY-8qA5Xg)
+
 ## Features
 
 🌍 Browse 100 top posts from Hacker News
